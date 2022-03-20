@@ -1,5 +1,6 @@
 .env
 .ngrok
+.DS_Store
 *.txt
 followers.json
 lists.js
