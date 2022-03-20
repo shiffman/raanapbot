@@ -1,0 +1,6 @@
+.env
+.ngrok
+*.txt
+followers.json
+lists.js
+node_modules

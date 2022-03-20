@@ -1,0 +1,38 @@
+{
+  "name": "twitter-autohook-tutorial",
+  "version": "1.0.0",
+  "description": "Build a DM autoresponder using Autohook and the Account Activity API from Twitter",
+  "main": "server.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "discord.js": "^13.6.0",
+    "dotenv": "^16.0.0",
+    "ngrok": "^4.3.1",
+    "twitter-api-v2": "^1.11.1",
+    "twitter-autohook": "^1.7.2",
+    "@runwayml/hosted-models": "^0.3.0",
+    "node-fetch": "^2.6.0",
+    "numeral": "^2.0.6",
+    "request": "^2.88.0",
+    "tenorjs": "^1.0.7",
+    "twit": "^2.2.11",
+    "wordfilter": "^0.2.6"
+  },
+  "devDependencies": {
+    "eslint-config-prettier": "^7.1.0"
+  },
+  "engines": {
+    "node": "17.x"
+  },
+  "repository": {
+    "url": "https://glitch.com/edit/#!/twitter-autohook-tutorial"
+  },
+  "license": "MIT",
+  "keywords": [
+    "node",
+    "glitch",
+    "express"
+  ]
+}
