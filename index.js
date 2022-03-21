@@ -25,7 +25,6 @@ const allIdeas = fs.readFileSync('raanap.txt', 'utf-8');
 const prompts = allIdeas.split('\n');
 // const allTV = fs.readFileSync("alltv.txt", "utf-8").split("\n");
 // goFIG
-const alt_text = JSON.parse(fs.readFileSync('gifs_alt.json', 'utf-8'));
 
 const wordfilter = require('wordfilter');
 const numeral = require('numeral');
@@ -381,7 +380,7 @@ async function reply(tweet) {
 async function start() {
   try {
     // Get list of followers
-    //await fillList();
+    await fillList();
 
     // Load GIFs
     // loadGIFs();

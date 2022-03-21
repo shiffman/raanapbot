@@ -2,6 +2,6 @@
 .ngrok
 .DS_Store
 *.txt
-followers.json
+*.json
 lists.js
 node_modules
