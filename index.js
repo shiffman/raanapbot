@@ -31,7 +31,13 @@ const numeral = require('numeral');
 
 const { random, sleep, pickYear, threadIt } = require('./util');
 const { generateRunway } = require('./runway');
-const { approvedNames, approvedMentions, replies, blockedWords, lessReplies } = require('./lists');
+const {
+  approvedNames,
+  approvedMentions,
+  replies,
+  blockedWords,
+  lessReplies,
+} = require('./lists');
 
 const { tweetIt, allFollowers, tweetImage } = require('./twitter');
 const { crappyMovieDiaper, s3e7 } = require('./moviedb');
@@ -68,7 +74,9 @@ async function readyDiscord() {
 
 const queue = {};
 
-async function add2Queue(tweet, reply_id) {
+async function add2Queue(tweet, tweetData) {
+  // console.log(tweetData);
+  // fs.writeFileSync('tweet.json', JSON.stringify(tweetData, null, 2));
   // const content = `${tweet}\nin_reply_to: ${reply_id}`;
   console.log('adding to queue');
   const raanapbotEmbed = new MessageEmbed()
@@ -76,24 +84,42 @@ async function add2Queue(tweet, reply_id) {
     .setDescription(tweet)
     .setTimestamp()
     .setFooter({ text: 'React with 👍 to approve, 👎 to reject.' });
-  if (reply_id) {
-    raanapbotEmbed.addFields({ name: 'reply_id', value: reply_id });
+  if (tweetData) {
+    raanapbotEmbed.setTitle('New Raanapbot Reply!');
+    raanapbotEmbed.addFields({
+      name: 'reply to',
+      value: tweetData.user.screen_name,
+    });
+    raanapbotEmbed.addFields({ name: 'original tweet', value: tweetData.text });
+    raanapbotEmbed.setURL(
+      `https://twitter.com/${tweetData.user.screen_name}/status/${tweetData.id_str}`
+    );
   }
   console.log('posting to discord');
   const msg = await client.channels.cache
     .get('954907424245047306')
     .send({ embeds: [raanapbotEmbed] });
-  queue[msg.id] = { tweet, reply_id };
+  queue[msg.id] = { tweet };
+  if (tweetData) {
+    queue[msg.id].reply_id = tweetData.id_str;
+  }
 }
 
 client.on('messageReactionAdd', async (reaction, user) => {
   const id = reaction.message.id;
+  const channel = reaction.message.channel;
+  console.log(channel.id);
+  if (channel.id !== '954907424245047306') {
+    console.log('wrong channel reaction');
+    return;
+  }
+
   if (queue[id]) {
     const { tweet, reply_id } = queue[id];
     if (reaction._emoji.name == '👍') {
       console.log('approved');
       if (tweet.length > 280) {
-        const thread = threadIt(content);
+        const thread = threadIt(tweet);
         let data = await tweetIt(thread[0], reply_id);
         for (let i = 1; i < thread.length; i++) {
           data = await tweetIt(thread[i], data.id_str);
@@ -116,6 +142,7 @@ tweeting();
 
 // Tweeting loop
 function tweeting() {
+  //const period = 30 * 60 * 1000;
   const period = 2 * 60 * 60 * 1000;
   // const period = 0.25 * 60 * 60 * 1000;
   let previous = Number(fs.readFileSync('time.txt', 'utf-8'));
@@ -143,12 +170,24 @@ function tweeting() {
 // console.log(xmas);
 
 // New tweet
+
+const data = fs.readFileSync('titles.txt', 'utf-8');
+const titles = data.split('\n');
+let index = Number(titles[0]) - 1;
+
 async function goTweet() {
   const now = new Date().getTime();
   fs.writeFileSync('time.txt', `${now}`);
   //let akivaIndex = Number(fs.readFileSync("akiva.txt", "utf-8"));
   //console.log(`Akiva index: ${akivaIndex}`);
   // Create a prompt
+
+  // Tweeting ideas only right now
+  tweetIt(titles[index]);
+  console.log(titles[index]);
+  index++;
+  return;
+
   let prompt = '';
   const r = Math.random();
   console.log(r);
@@ -363,7 +402,7 @@ async function reply(tweet) {
   }
 
   // Thread it?
-  await add2Queue(replyText, tweet.id_str);
+  await add2Queue(replyText, tweet);
   // if (replyText.length > 280) {
   //   const thread = threadIt(replyText);
   //   let data = await tweetIt(thread[0], tweet.id_str);
@@ -385,16 +424,16 @@ async function start() {
     // Load GIFs
     // loadGIFs();
 
+    // FOR GLITCH
     // const webhookURL = `https://${process.env.PROJECT_DOMAIN}.glitch.me/webhook`;
 
-    // NEEDED FOR NON GLITCH
+    // WITH NGROK
     const PORT = 4242;
     const NGROK_AUTH_TOKEN = process.env.NGROK_AUTH_TOKEN;
     await ngrok.authtoken(NGROK_AUTH_TOKEN);
     const url = await ngrok.connect(PORT);
     const webhookURL = `${url}/standalone-server/webhook`;
     const server = startServer(PORT, oAuthConfig);
-    // NEEDED FOR NON GLITCH
 
     const webhook = new Autohook();
     await webhook.removeWebhooks();
@@ -421,7 +460,9 @@ async function fillList() {
   //console.log(approvedList);
   if (!approvedList) {
     console.log('loading file of followers');
-    approvedList = JSON.parse(fs.readFileSync('followers.json', 'utf-8')).followers;
+    approvedList = JSON.parse(
+      fs.readFileSync('followers.json', 'utf-8')
+    ).followers;
   } else {
     // Write new followers file
     console.log('writing file of followers');
@@ -486,7 +527,10 @@ const startServer = (port, auth) =>
         res.end(JSON.stringify(crc));
       }
 
-      if (req.method === 'POST' && req.headers['content-type'] === 'application/json') {
+      if (
+        req.method === 'POST' &&
+        req.headers['content-type'] === 'application/json'
+      ) {
         let body = '';
         req.on('data', (chunk) => {
           body += chunk.toString();
@@ -520,7 +564,9 @@ async function tweetHandler(event) {
     const tweet = event.tweet_create_events[0];
     let mentions = [];
     if (tweet.entities.user_mentions) {
-      tweet.entities.user_mentions.forEach((elt) => mentions.push(elt.screen_name));
+      tweet.entities.user_mentions.forEach((elt) =>
+        mentions.push(elt.screen_name)
+      );
     }
     const reply_screen_name = tweet.in_reply_to_screen_name;
     const screen_name = tweet.user.screen_name;
