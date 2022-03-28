@@ -171,9 +171,9 @@ function tweeting() {
 
 // New tweet
 
-const data = fs.readFileSync('titles.txt', 'utf-8');
-const titles = data.split('\n');
-let index = Number(titles[0]) - 1;
+// const data = fs.readFileSync('titles.txt', 'utf-8');
+// const titles = data.split('\n');
+// let index = Number(titles[0]) - 1;
 
 async function goTweet() {
   const now = new Date().getTime();
@@ -183,10 +183,10 @@ async function goTweet() {
   // Create a prompt
 
   // Tweeting ideas only right now
-  tweetIt(titles[index]);
-  console.log(titles[index]);
-  index++;
-  return;
+  // tweetIt(titles[index]);
+  // console.log(titles[index]);
+  // index++;
+  // return;
 
   let prompt = '';
   const r = Math.random();

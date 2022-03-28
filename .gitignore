@@ -1,7 +1,12 @@
 .env
 .ngrok
 .DS_Store
-*.txt
-*.json
+titles.txt
+xmas.txt
+raanap.txt
+12days.txt
+akiva.txt
+tweet.json
+followers.json
 lists.js
 node_modules
