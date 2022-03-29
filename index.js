@@ -31,14 +31,8 @@ const numeral = require('numeral');
 
 const { random, sleep, pickYear, threadIt } = require('./util');
 const { generateRunway } = require('./runway');
-const {
-  approvedNames,
-  approvedMentions,
-  replies,
-  blockedWords,
-  lessReplies,
-} = require('./lists');
-
+const { approvedNames, approvedMentions, replies, blockedWords, lessReplies } =
+  JSON.parse(fs.readFileSync('lists.json', 'utf-8'));
 const { tweetIt, allFollowers, tweetImage } = require('./twitter');
 const { crappyMovieDiaper, s3e7 } = require('./moviedb');
 const { goGIF } = require('./gif-tenor');
