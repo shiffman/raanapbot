@@ -24,10 +24,11 @@ const { tweetIt } = require('./twitter');
 
 console.log('beep beep 🤖');
 
-const tweet = `WELCOME TO THE OMAHA PODCAST
-My podcast idea! I teach the listeners about the city and show them a picture of the iconic Wawa sign.  They can then use Google to find the actual store and buy whatever they need. The catch is that I’m not gonna buy you a pizza. That’s it!`;
+const tweet = `Mini golf is underrated because it’s very time-consuming, but it’s actually really fun to play and could be fun to watch.
+
+This game has been around for a long time and hasn’t really gotten much attention from the media.`;
 console.log(tweet.length);
 go();
 async function go() {
-  let data = await tweetIt(tweet);
+  let data = await tweetIt(tweet, '1525630319449227264');
 }

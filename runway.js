@@ -3,14 +3,15 @@ const fetch = require('node-fetch');
 
 const model_url =
   'https://api-inference.huggingface.co/models/shiffman/gpt-neo-1.3B-raanapbot-2022';
-
+// 'https://api-inference.huggingface.co/models/shiffman/gpt2-raanapbot-2022';
+//'https://api-inference.huggingface.co/models/shiffman/gpt-neo-125M-raanapbot-2022';
 // const model = new rw.HostedModel({
 //   url: process.env.RUNWAY_URL,
 //   token: process.env.RUNWAY_TOKEN,
 // });
 
 module.exports = {
-  generateRunway: async (prompt) => {
+  generateRunway: async (prompt, num = 1) => {
     // let seed = Math.floor(Math.random() * 1000);
     // let top_p = 0.9;
     // const inputs = {
@@ -21,14 +22,15 @@ module.exports = {
     // };
 
     console.log(`prompt: ${prompt}`);
+    console.log(num);
     const data = {
       inputs: prompt,
       parameters: {
-        max_length: 60,
+        max_length: 120,
         return_full_text: true,
         top_p: 0.9,
-        temperature: 1.0,
-        num_return_sequences: 1,
+        temperature: 0.95,
+        num_return_sequences: num,
       },
       options: {
         use_gpu: false,
@@ -36,6 +38,7 @@ module.exports = {
         wait_for_model: true,
       },
     };
+    console.log(model_url);
     const response = await fetch(model_url, {
       headers: {
         Authorization: `Bearer ${process.env.HUGGING_FACE_API_TOKEN}`,
@@ -44,33 +47,43 @@ module.exports = {
       body: JSON.stringify(data),
     });
     const results = await response.json();
-    const result = results[0].generated_text;
-    console.log(`original: ${result}`);
-    // Splitting up and shortening the total number of sections
-    if (result.length > 280) {
-      console.log('shortening');
-      let regex = /([.\n?!]+)/g;
-      let sentences = result.split(regex);
-      let len = sentences.length - 1;
-      // always removed the extra last bit
-      sentences.splice(len, 1);
-      result = sentences.join('');
-      len /= 2;
-      if (len > 2) {
-        console.log(sentences);
-        let r = Math.floor(Math.random() * (len - 2) + 3) * 2;
-        console.log(r);
-        sentences.splice(r, sentences.length - r);
-      }
-      result = sentences.join('');
-      console.log(`modified: ${result}`);
-    }
+    console.log(results);
+    const choices = [];
+    for (let i = 0; i < results.length; i++) {
+      let result = results[i].generated_text;
+      console.log(`original: ${result}`);
+      result = result.replace(/<br>/g, '\n');
+      result = result.replace(/\n+/g, '\n');
 
-    // TODO IMPROVE: This just gives rid of one stray quote
-    let quotes = result.match(/"/g);
-    if (quotes && quotes.length === 1) {
-      result = result.replace(/"/, '');
+      console.log(`replace line breaks: ${result}`);
+      // Splitting up and shortening the total number of sections
+      if (result.length > 280) {
+        console.log('shortening');
+        let regex = /([.\n?!]+)/g;
+        let sentences = result.split(regex);
+        let len = sentences.length - 1;
+        // always removed the extra last bit
+        sentences.splice(len, 1);
+        result = sentences.join('');
+        len /= 2;
+        if (len > 2) {
+          console.log(sentences);
+          let r = Math.floor(Math.random() * (len - 2) + 3) * 2;
+          console.log(r);
+          sentences.splice(r, sentences.length - r);
+        }
+        result = sentences.join('');
+        console.log(`modified: ${result}`);
+      }
+
+      // TODO IMPROVE: This just gives rid of one stray quote
+      let quotes = result.match(/"/g);
+      if (quotes && quotes.length === 1) {
+        result = result.replace(/"/, '');
+      }
+      choices.push(result);
     }
-    return result;
+    if (choices.length > 1) return choices;
+    else return choices[0];
   },
 };

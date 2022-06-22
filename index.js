@@ -21,7 +21,7 @@ const post = util.promisify(request.post);
 const fs = require('fs');
 const fetch = require('node-fetch');
 
-const allIdeas = fs.readFileSync('raanap.txt', 'utf-8');
+const allIdeas = fs.readFileSync('raanap_prompts.txt', 'utf-8');
 const prompts = allIdeas.split('\n');
 // const allTV = fs.readFileSync("alltv.txt", "utf-8").split("\n");
 // goFIG
@@ -38,6 +38,19 @@ const { crappyMovieDiaper, s3e7 } = require('./moviedb');
 const { goGIF } = require('./gif-tenor');
 
 console.log('beep beep 🤖');
+
+const emojiLookup = {
+  '0️⃣': 0,
+  '1️⃣': 1,
+  '2️⃣': 2,
+  '3️⃣': 3,
+  '4️⃣': 4,
+  '5️⃣': 5,
+  '6️⃣': 6,
+  '7️⃣': 7,
+  '8️⃣': 8,
+  '9️⃣': 9,
+};
 
 // Manually adding some words that the bot has used
 wordfilter.addWords(blockedWords);
@@ -67,6 +80,26 @@ async function readyDiscord() {
 }
 
 const queue = {};
+
+async function addChoices(tweets) {
+  console.log('adding to queue');
+
+  let content = '';
+  for (let i = 0; i < tweets.length; i++) {
+    content += `${i}: ${tweets[i]}\n`;
+  }
+
+  const raanapbotEmbed = new MessageEmbed()
+    .setTitle('Choose a tweet')
+    .setDescription(content)
+    .setTimestamp()
+    .setFooter({ text: 'React 0️⃣-9️⃣ to select a tweet.' });
+  console.log('posting to discord');
+  const msg = await client.channels.cache
+    .get('954907424245047306')
+    .send({ embeds: [raanapbotEmbed] });
+  queue[msg.id] = { tweet: tweets };
+}
 
 async function add2Queue(tweet, tweetData) {
   // console.log(tweetData);
@@ -110,7 +143,21 @@ client.on('messageReactionAdd', async (reaction, user) => {
 
   if (queue[id]) {
     const { tweet, reply_id } = queue[id];
-    if (reaction._emoji.name == '👍') {
+    const emoji = reaction._emoji.name;
+    const index = emojiLookup[emoji];
+    if (index > -1) {
+      console.log('Selected: ' + emojiLookup[emoji]);
+      await reaction.message.reply(`Tweeting #${index}!`);
+      if (tweet[index].length > 280) {
+        const thread = threadIt(tweet[index]);
+        let data = await tweetIt(thread[0], reply_id);
+        for (let i = 1; i < thread.length; i++) {
+          data = await tweetIt(thread[i], data.id_str);
+        }
+      } else {
+        await tweetIt(tweet[index], reply_id);
+      }
+    } else if (emoji == '👍') {
       console.log('approved');
       if (tweet.length > 280) {
         const thread = threadIt(tweet);
@@ -125,6 +172,7 @@ client.on('messageReactionAdd', async (reaction, user) => {
       queue[id] = undefined;
     } else if (reaction._emoji.name == '👎') {
       await reaction.message.reply('tweet cancelled!');
+      if (!reply_id) goTweet();
     }
   } else {
     await reaction.message.reply('did not find this tweet in the queue!');
@@ -137,7 +185,9 @@ tweeting();
 // Tweeting loop
 function tweeting() {
   //const period = 30 * 60 * 1000;
-  const period = 2 * 60 * 60 * 1000;
+  // Temporarily every 1 minutes
+  // const period = 1 * 1 * 60 * 1000;
+  const period = 6 * 60 * 60 * 1000;
   // const period = 0.25 * 60 * 60 * 1000;
   let previous = Number(fs.readFileSync('time.txt', 'utf-8'));
   let diff = new Date().getTime() - previous;
@@ -169,6 +219,10 @@ function tweeting() {
 // const titles = data.split('\n');
 // let index = Number(titles[0]) - 1;
 
+const ratedText = fs.readFileSync('rated.txt', 'utf-8');
+const ratedList = ratedText.split('\n');
+console.log(ratedList);
+
 async function goTweet() {
   const now = new Date().getTime();
   fs.writeFileSync('time.txt', `${now}`);
@@ -186,28 +240,30 @@ async function goTweet() {
   const r = Math.random();
   console.log(r);
   // Force a tweet
-  if (r < 0.04) {
+  if (r < 0.03) {
+    let index = Math.floor(Math.random() * ratedList.length);
+    prompt = ratedList[index];
+    //ratedList.splice(index, 1);
+    prompt += ' ';
+    prompt += random(['overrated', 'properly rated', 'underrated']);
+    if (Math.random() < 0.5) {
+      prompt += ' because';
+    }
+  } else if (r < 0.06) {
     // let hbd = [
-    //   "Happy Birthday!",
-    //   "Happy Birthday",
-    //   "Happy birthday to",
-    //   "Happy Birthday Rob",
-    //   "Happy birthday Rob",
-    //   "Happy birthday Rob ",
-    //   "Happy Birthday to Rob!",
-    //   "Happy birthday to Rob!",
-    //   "Happy Birthday to Rob",
-    //   "Happy birthday to Rob",
-    //   "Happy Birthday to Rob ",
-    //   "Happy birthday to Rob "
+    //   'Dr. Amanda is underrated because',
+    //   'Happy Birthday!',
+    //   'Happy Birthday',
+    //   'Happy birthday to',
+    //   'Happy Birthday Dr. Amanda',
+    //   'Happy Birthday to Dr. Amanda',
     // ];
     // prompt = random(hbd);
-
     let hottakes = ['Hot take: ', 'Hot take:', 'Hot take:'];
     prompt = random(hottakes);
     //     //xmas++;
     //     //fs.writeFileSync("xmas.txt", `${xmas}`);
-  } else if (r < 0.08) {
+  } else if (r < 0.09) {
     let rebrands = [
       'Rob and Akiva Rebrand ',
       'Rob and Akiva Rebrand',
@@ -219,7 +275,7 @@ async function goTweet() {
       'Rob & Akiva rebrand',
     ];
     prompt = random(rebrands);
-  } else if (r < 0.12) {
+  } else if (r < 0.13) {
     let vows = [
       'I promise to',
       'I promise to be',
@@ -274,41 +330,38 @@ async function goTweet() {
   console.log(prompt);
 
   // Generate Tweet
-  let tweet = await generateRunway(prompt);
-  if (wordfilter.blacklisted(tweet)) {
-    console.log('wordfilter blocked tweet');
-    console.log(tweet);
-    return;
-  }
+  let choices = await generateRunway(prompt, 10);
+  console.log(choices);
+  for (let i = choices.length - 1; i >= 0; i--) {
+    if (wordfilter.blacklisted(choices[i])) {
+      console.log('wordfilter blocked tweet');
+      console.log(choices[i]);
+      choices.splice(i, 1);
+      continue;
+    }
 
-  if (tweet.length < prompt.length + 5) {
-    console.log('too short');
-    console.log(tweet);
-    goTweet();
-    return;
-  }
-
-  // Replace all metnions
-  // TODO: Code is duplicated as in reply() function
-  // This and wordfilter and threading!
-  let regex = /@[a-z0-9_]+/gi;
-  let mentions = tweet.match(regex);
-  if (mentions) {
-    mentions.forEach((username) => {
-      let screen_name = username.substring(1, username.length);
-      // console.log(`Mentioned: ${screen_name}`);
-      if (!approvedMentions[screen_name]) {
-        let replacements = Object.keys(approvedMentions);
-        let replacement = random(replacements);
-        console.log(`Replacing: ${screen_name} with ${replacement}`);
-        tweet = tweet.replace(screen_name, replacement);
-      }
-    });
+    // Replace all metnions
+    // TODO: Code is duplicated as in reply() function
+    // This and wordfilter and threading!
+    let regex = /@[a-z0-9_]+/gi;
+    let mentions = choices[i].match(regex);
+    if (mentions) {
+      mentions.forEach((username) => {
+        let screen_name = username.substring(1, username.length);
+        // console.log(`Mentioned: ${screen_name}`);
+        if (!approvedMentions[screen_name]) {
+          let replacements = Object.keys(approvedMentions);
+          let replacement = random(replacements);
+          console.log(`Replacing: ${screen_name} with ${replacement}`);
+          choices[i] = choices[i].replace(screen_name, replacement);
+        }
+      });
+    }
   }
 
   // Thread?
 
-  await add2Queue(tweet);
+  await addChoices(choices);
   // if (tweet.length > 280) {
   //   const thread = threadIt(tweet);
   //   let data = await tweetIt(thread[0]);
@@ -615,9 +668,9 @@ async function tweetHandler(event) {
     let r1 = Math.random();
     console.log(r1);
 
-    // if (lessReplies.includes(tweet.user.screen_name) && Math.random() < 0.6) {
-    //   return;
-    // }
+    if (lessReplies.includes(tweet.user.screen_name) && Math.random() < 0.6) {
+      return;
+    }
 
     if (r1 < 0.15) {
       goGIF(tweet);
