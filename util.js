@@ -37,21 +37,23 @@ module.exports = {
 
   threadIt: (txt) => {
     let thread = [];
-    let total = Math.floor(txt.length / 270) + 1;
-    let words = txt.split(' ');
-    let len = Math.floor(words.length / total);
-    let first = true;
-    while (words.length > 0) {
-      let tweet = '...' + words.join(' ').trim();
-      if (tweet.length <= 280) {
-        words = [];
+    let lines = txt.split(/([?!.\n]+)/g);
+    lines = lines.filter((s) => s.length > 0);
+    let tweet = '';
+    while (lines.length > 0) {
+      let next = lines[0] + lines[1];
+      let len = tweet.length + next.length;
+      if (len < 280) {
+        tweet += next;
+        lines.splice(0, 2);
+        if (lines.length == 0) {
+          thread.push(tweet.trim());
+          break; // This is redundant but just in case
+        }
       } else {
-        tweet = words.splice(0, len).join(' ').trim();
-        if (!first) tweet = '...' + tweet;
-        if (first) first = false;
-        if (words.length > 0) tweet += '...';
+        thread.push(tweet.trim());
+        tweet = '';
       }
-      thread.push(tweet);
     }
     return thread;
   },

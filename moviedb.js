@@ -3,7 +3,7 @@ const { random, pickYear } = require('./util');
 const { tweetMedia, tweetIt } = require('./twitter');
 const fs = require('fs');
 
-const data = fs.readFileSync('tv_small.json', 'utf-8');
+const data = fs.readFileSync('data/tv_small.json', 'utf-8');
 const allShows = JSON.parse(data).shows;
 
 const moviedb_url = `https://api.themoviedb.org/3`;

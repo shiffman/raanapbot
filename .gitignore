@@ -2,8 +2,8 @@
 .ngrok
 .DS_Store
 misc
-raanap_prompts.txt
-followers.json
-lists.json
+catchphrases
+prompts
+data
 node_modules
 tweet.json

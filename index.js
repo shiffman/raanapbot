@@ -21,8 +21,12 @@ const post = util.promisify(request.post);
 const fs = require('fs');
 const fetch = require('node-fetch');
 
-const allIdeas = fs.readFileSync('raanap_prompts.txt', 'utf-8');
+const allIdeas = fs.readFileSync('prompts/raanap_prompts.txt', 'utf-8');
 const prompts = allIdeas.split('\n');
+
+const allTakes = fs.readFileSync('prompts/hot_takes_prompts.txt', 'utf-8');
+const takePrompts = allTakes.split('\n');
+
 // const allTV = fs.readFileSync("alltv.txt", "utf-8").split("\n");
 // goFIG
 
@@ -32,7 +36,7 @@ const numeral = require('numeral');
 const { random, sleep, pickYear, threadIt } = require('./util');
 const { generateRunway } = require('./runway');
 const { approvedNames, approvedMentions, replies, blockedWords, lessReplies } =
-  JSON.parse(fs.readFileSync('lists.json', 'utf-8'));
+  JSON.parse(fs.readFileSync('data/lists.json', 'utf-8'));
 const { tweetIt, allFollowers, tweetImage } = require('./twitter');
 const { crappyMovieDiaper, s3e7 } = require('./moviedb');
 const { goGIF } = require('./gif-tenor');
@@ -172,7 +176,15 @@ client.on('messageReactionAdd', async (reaction, user) => {
       queue[id] = undefined;
     } else if (reaction._emoji.name == '👎') {
       await reaction.message.reply('tweet cancelled!');
-      if (!reply_id) goTweet();
+      if (!reply_id) {
+        goTweet();
+      } else {
+        if (Math.random() < 0.5) {
+          await goGIF(tweet);
+        } else {
+          await cannedReply(tweet);
+        }
+      }
     }
   } else {
     await reaction.message.reply('did not find this tweet in the queue!');
@@ -187,7 +199,14 @@ function tweeting() {
   //const period = 30 * 60 * 1000;
   // Temporarily every 1 minutes
   // const period = 1 * 1 * 60 * 1000;
-  const period = 6 * 60 * 60 * 1000;
+  // const period = 4 * 60 * 60 * 1000;
+
+  // FOUR HOURS
+  const period = 4 * 60 * 60 * 1000;
+
+  // ONE HOUR
+  // const period = 1 * 60 * 60 * 1000;
+
   // const period = 0.25 * 60 * 60 * 1000;
   let previous = Number(fs.readFileSync('time.txt', 'utf-8'));
   let diff = new Date().getTime() - previous;
@@ -219,9 +238,19 @@ function tweeting() {
 // const titles = data.split('\n');
 // let index = Number(titles[0]) - 1;
 
-const ratedText = fs.readFileSync('rated.txt', 'utf-8');
+const ratedText = fs.readFileSync('prompts/ratedAll.txt', 'utf-8');
 const ratedList = ratedText.split('\n');
-console.log(ratedList);
+// console.log(ratedList);
+
+const takesText = fs.readFileSync('prompts/takes.txt', 'utf-8');
+const takesList = takesText.split('\n');
+
+// for (let i = 0; i < takesList.length; i++) {
+//   let s = 'Hot take: ' + takesList[i];
+//   if (s.length > 280) {
+//     console.log(s);
+//   }
+// }
 
 async function goTweet() {
   const now = new Date().getTime();
@@ -236,11 +265,33 @@ async function goTweet() {
   // index++;
   // return;
 
+  let model = 'mailbag';
+
   let prompt = '';
   const r = Math.random();
   console.log(r);
   // Force a tweet
-  if (r < 0.03) {
+
+  if (r < 0.05) {
+    const raw = fs.readFileSync('prompts/gen_phrases.txt', 'utf-8');
+    const phrases = raw.split('\n');
+    let index = Math.floor(Math.random() * phrases.length);
+    let suffix = [' (Rob)', ' (Rob)', ' (Akiva)', ' (Akiva)', ' (Both)'];
+    let phrase = `catchphrase: ${phrases[index]}${random(suffix)}`;
+    phrases.splice(index, 1);
+    fs.writeFileSync('prompts/gen_phrases.txt', phrases.join('\n'));
+    await tweetIt(phrase);
+    console.log(phrase);
+    return;
+  } else if (r < 0.1) {
+    const today = [
+      'I was today years old when I learned',
+      'I was today years old when I found out',
+    ];
+    prompt = random(today);
+    model = 'til';
+  } else if (r < 0.12) {
+    // if (r < 0.0) {
     let index = Math.floor(Math.random() * ratedList.length);
     prompt = ratedList[index];
     //ratedList.splice(index, 1);
@@ -249,7 +300,23 @@ async function goTweet() {
     if (Math.random() < 0.5) {
       prompt += ' because';
     }
-  } else if (r < 0.06) {
+  } else if (r < 0.3) {
+    // } else if (r < 1) {
+    // let index = Math.floor(Math.random() * takesList.length);
+    // const tweet = 'Hot take: ' + takesList[index];
+    // takesList.splice(index, 1);
+    // const newTakes = takesList.join('\n');
+    // fs.writeFileSync('misc/takes.txt', newTakes);
+    // if (tweet.length > 280) {
+    //   const thread = threadIt(tweet);
+    //   let data = await tweetIt(thread[0]);
+    //   for (let i = 1; i < thread.length; i++) {
+    //     data = await tweetIt(thread[i], data.id_str);
+    //   }
+    // } else {
+    //   await tweetIt(tweet);
+    // }
+    // return;
     // let hbd = [
     //   'Dr. Amanda is underrated because',
     //   'Happy Birthday!',
@@ -261,9 +328,17 @@ async function goTweet() {
     // prompt = random(hbd);
     let hottakes = ['Hot take: ', 'Hot take:', 'Hot take:'];
     prompt = random(hottakes);
+    let takePrompt = random(takePrompts);
+    let tokens = takePrompt.split(' ');
+    if (Math.random() < 0.5) {
+      prompt = tokens[0];
+      if (Math.random() < 0.5) prompt += ' ' + tokens[1];
+      if (Math.random() < 0.5) prompt = 'Hot take: ' + prompt;
+    }
+    model = 'hottake';
     //     //xmas++;
     //     //fs.writeFileSync("xmas.txt", `${xmas}`);
-  } else if (r < 0.09) {
+  } else if (r < 0.35) {
     let rebrands = [
       'Rob and Akiva Rebrand ',
       'Rob and Akiva Rebrand',
@@ -275,7 +350,7 @@ async function goTweet() {
       'Rob & Akiva rebrand',
     ];
     prompt = random(rebrands);
-  } else if (r < 0.13) {
+  } else if (r < 0.4) {
     let vows = [
       'I promise to',
       'I promise to be',
@@ -286,15 +361,14 @@ async function goTweet() {
       'I take you',
       'I take you to be my',
     ];
-
     prompt = random(vows);
   }
   //if (r < 1) {
-  else if (r < 0.15) {
+  else if (r < 0.42) {
     console.log('s3e7');
     await s3e7();
     return;
-  } else if (r < 0.16) {
+  } else if (r < 0.44) {
     let hack = 0;
     let result = await crappyMovieDiaper();
     while (!result) {
@@ -306,7 +380,7 @@ async function goTweet() {
       }
     }
     return;
-  } else if (r < 0.6) {
+  } else if (r < 0.5) {
     prompt = random(prompts);
     const len = Math.min(prompt.length, 16);
     const end = Math.floor(Math.random() * len) + 1;
@@ -314,7 +388,7 @@ async function goTweet() {
     prompt = prompt.trim();
     if (Math.random() < 0.25) prompt = 'Podcast Idea: ' + prompt;
     // Prompt with first and/or second word
-  } else if (r < 0.65) {
+  } else if (r < 0.55) {
     prompt = 'Rob and Akiva Need';
   } else if (r < 0.95) {
     const txt = random(prompts);
@@ -324,13 +398,19 @@ async function goTweet() {
     if (Math.random() < 0.25) prompt = 'Podcast Idea: ' + prompt;
     // Podcast Idea prompt
   } else {
-    prompt = 'Podcast Idea';
+    prompt = random(['Podcast Idea', 'Podcast Idea:']);
   }
 
-  console.log(prompt);
-
   // Generate Tweet
-  let choices = await generateRunway(prompt, 10);
+  let choices = await generateRunway(prompt, 10, model);
+
+  if (choices.error) {
+    console.log('error');
+    // Trying again in 10 minutes
+    setTimeout(goTweet, 10 * 60 * 1000);
+    return;
+  }
+
   console.log(choices);
   for (let i = choices.length - 1; i >= 0; i--) {
     if (wordfilter.blacklisted(choices[i])) {
@@ -414,16 +494,22 @@ async function reply(tweet) {
   }
 
   console.log('revised: ' + prompt);
+  const generated = await generateRunway(prompt, 1);
 
-  // Generate
-  const generated = await generateRunway(prompt);
+  if (generated.error) {
+    console.log(generated.error);
+    return;
+  }
+
   let replyText = generated.replace(prompt, '').trim();
 
   // TODO: more cleanup here?
 
   // Canned reply if there's nothing
-  if (replyText.length < 1) {
+  if (replyText.length < 1 && Math.random() < 0.5) {
     return await cannedReply(tweet);
+  } else {
+    return await goGIF(tweet);
   }
 
   if (wordfilter.blacklisted(replyText)) {
@@ -508,13 +594,13 @@ async function fillList() {
   if (!approvedList) {
     console.log('loading file of followers');
     approvedList = JSON.parse(
-      fs.readFileSync('followers.json', 'utf-8')
+      fs.readFileSync('data/followers.json', 'utf-8')
     ).followers;
   } else {
     // Write new followers file
     console.log('writing file of followers');
     fs.writeFileSync(
-      'followers.json',
+      'data/followers.json',
       JSON.stringify(
         {
           followers: approvedList,
@@ -647,7 +733,7 @@ async function tweetHandler(event) {
     // Is this a GIF sent to me?
     const regexAllURL = /^https:\/\/t\.co\/[a-z0-9]+$/i;
     if (regexAllURL.test(txt) && Math.random() < 0.9) {
-      goGIF(tweet);
+      await goGIF(tweet);
       return;
     }
 
@@ -672,9 +758,9 @@ async function tweetHandler(event) {
       return;
     }
 
-    if (r1 < 0.15) {
-      goGIF(tweet);
-    } else if (r1 < 0.3) {
+    if (r1 < 0.25) {
+      await goGIF(tweet);
+    } else if (r1 < 5) {
       await cannedReply(tweet);
     } else if (approvedNames.includes(tweet.user.screen_name)) {
       await reply(tweet);

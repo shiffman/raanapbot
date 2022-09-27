@@ -1,17 +1,43 @@
 // const rw = require('@runwayml/hosted-models');
 const fetch = require('node-fetch');
+const { random } = require('./util');
 
-const model_url =
-  'https://api-inference.huggingface.co/models/shiffman/gpt-neo-1.3B-raanapbot-2022';
-// 'https://api-inference.huggingface.co/models/shiffman/gpt2-raanapbot-2022';
-//'https://api-inference.huggingface.co/models/shiffman/gpt-neo-125M-raanapbot-2022';
-// const model = new rw.HostedModel({
-//   url: process.env.RUNWAY_URL,
-//   token: process.env.RUNWAY_TOKEN,
-// });
+const { Configuration, OpenAIApi } = require('openai');
+const configuration = new Configuration({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+const openai = new OpenAIApi(configuration);
+
+// const hottake_url =
+//   'https://api-inference.huggingface.co/models/shiffman/gpt-neo-1.3B-raanapbot-hot-takes-2022';
+// const model_url =
+//   'https://api-inference.huggingface.co/models/shiffman/gpt-neo-1.3B-raanapbot-ideas-2022';
+// const til_url =
+//   'https://api-inference.huggingface.co/models/shiffman/gpt-neo-1.3B-raanapbot-til-2022';
+
+const models = {
+  hottake: 'shiffman/gpt-neo-1.3B-raanapbot-hot-takes-2022',
+  mailbag: 'shiffman/gpt-neo-1.3B-raanapbot-ideas-2022',
+  til: 'shiffman/gpt-neo-1.3B-raanapbot-til-2022',
+};
 
 module.exports = {
-  generateRunway: async (prompt, num = 1) => {
+  generateCatchPhrase: async () => {
+    const completion = await openai.createCompletion({
+      model: 'curie:ft-itp-2022-09-22-20-01-19',
+      prompt: '',
+      n: 5,
+      max_tokens: 64,
+      stop: ' <end>',
+    });
+    const options = completion.data.choices;
+    const choices = [];
+    for (let choice of options) {
+      choices.push(options.text.trim());
+    }
+    return choices;
+  },
+  generateRunway: async (prompt, num = 1, model = 'mailbag') => {
     // let seed = Math.floor(Math.random() * 1000);
     // let top_p = 0.9;
     // const inputs = {
@@ -31,6 +57,7 @@ module.exports = {
         top_p: 0.9,
         temperature: 0.95,
         num_return_sequences: num,
+        do_sample: true,
       },
       options: {
         use_gpu: false,
@@ -38,8 +65,15 @@ module.exports = {
         wait_for_model: true,
       },
     };
-    console.log(model_url);
-    const response = await fetch(model_url, {
+
+    if (Math.random() < 0.1) {
+      let keys = Object.keys(models);
+      model = random(keys);
+      console.log('randomizing model!');
+    }
+    let url = `https://api-inference.huggingface.co/models/${models[model]}`;
+    console.log(url);
+    const response = await fetch(url, {
       headers: {
         Authorization: `Bearer ${process.env.HUGGING_FACE_API_TOKEN}`,
       },
@@ -48,6 +82,11 @@ module.exports = {
     });
     const results = await response.json();
     console.log(results);
+
+    if (results.error) {
+      return { error: results.error };
+    }
+
     const choices = [];
     for (let i = 0; i < results.length; i++) {
       let result = results[i].generated_text;

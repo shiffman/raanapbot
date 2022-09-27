@@ -7,17 +7,18 @@
     "start": "node index.js"
   },
   "dependencies": {
+    "@runwayml/hosted-models": "^0.3.0",
     "discord.js": "^13.6.0",
     "dotenv": "^16.0.0",
-    "ngrok": "^4.3.1",
-    "twitter-api-v2": "^1.11.1",
-    "twitter-autohook": "^1.7.2",
-    "@runwayml/hosted-models": "^0.3.0",
+    "ngrok": "^4.3.3",
     "node-fetch": "^2.6.0",
     "numeral": "^2.0.6",
+    "openai": "^3.0.0",
     "request": "^2.88.0",
     "tenorjs": "^1.0.7",
     "twit": "^2.2.11",
+    "twitter-api-v2": "^1.11.1",
+    "twitter-autohook": "^1.7.2",
     "wordfilter": "^0.2.6"
   },
   "devDependencies": {
