@@ -3,6 +3,9 @@ require('dotenv').config();
 
 const fs = require('fs');
 
+
+console.log(process.env.OPENAI_SECRET_KEY)\;
+
 const configuration = new Configuration({
   apiKey: process.env.OPENAI_API_KEY,
 });

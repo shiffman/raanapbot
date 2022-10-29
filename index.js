@@ -34,7 +34,7 @@ const wordfilter = require('wordfilter');
 const numeral = require('numeral');
 
 const { random, sleep, pickYear, threadIt } = require('./util');
-const { generateRunway } = require('./runway');
+const { generateRunway, generateOPENAI } = require('./runway');
 const { approvedNames, approvedMentions, replies, blockedWords, lessReplies } =
   JSON.parse(fs.readFileSync('data/lists.json', 'utf-8'));
 const { tweetIt, allFollowers, tweetImage } = require('./twitter');
@@ -85,7 +85,7 @@ async function readyDiscord() {
 
 const queue = {};
 
-async function addChoices(tweets) {
+async function addChoices(tweets, tweetData) {
   console.log('adding to queue');
 
   let content = '';
@@ -98,11 +98,25 @@ async function addChoices(tweets) {
     .setDescription(content)
     .setTimestamp()
     .setFooter({ text: 'React 0️⃣-9️⃣ to select a tweet.' });
+  if (tweetData) {
+    raanapbotEmbed.setTitle('New Raanapbot Reply!');
+    raanapbotEmbed.addFields({
+      name: 'reply to',
+      value: tweetData.user.screen_name,
+    });
+    raanapbotEmbed.addFields({ name: 'original tweet', value: tweetData.text });
+    raanapbotEmbed.setURL(
+      `https://twitter.com/${tweetData.user.screen_name}/status/${tweetData.id_str}`
+    );
+  }
   console.log('posting to discord');
   const msg = await client.channels.cache
     .get('954907424245047306')
     .send({ embeds: [raanapbotEmbed] });
   queue[msg.id] = { tweet: tweets };
+  if (tweetData) {
+    queue[msg.id].reply_id = tweetData.id_str;
+  }
 }
 
 async function add2Queue(tweet, tweetData) {
@@ -271,7 +285,19 @@ async function goTweet() {
   const r = Math.random();
   console.log(r);
   // Force a tweet
-
+  // if (r < 1) {
+  //   let hbd = [
+  //     'Rob is underrated because',
+  //     'Happy Birthday!',
+  //     'Happy Birthday',
+  //     'Happy birthday to',
+  //     'Happy Birthday Rob',
+  //     'Happy Birthday Rob!',
+  //     'Happy Birthday to Rob',
+  //     'Happy Birthday to Rob!',
+  //   ];
+  //   prompt = random(hbd);
+  // } else
   if (r < 0.05) {
     const raw = fs.readFileSync('prompts/gen_phrases.txt', 'utf-8');
     const phrases = raw.split('\n');
@@ -317,15 +343,7 @@ async function goTweet() {
     //   await tweetIt(tweet);
     // }
     // return;
-    // let hbd = [
-    //   'Dr. Amanda is underrated because',
-    //   'Happy Birthday!',
-    //   'Happy Birthday',
-    //   'Happy birthday to',
-    //   'Happy Birthday Dr. Amanda',
-    //   'Happy Birthday to Dr. Amanda',
-    // ];
-    // prompt = random(hbd);
+
     let hottakes = ['Hot take: ', 'Hot take:', 'Hot take:'];
     prompt = random(hottakes);
     let takePrompt = random(takePrompts);
@@ -402,7 +420,7 @@ async function goTweet() {
   }
 
   // Generate Tweet
-  let choices = await generateRunway(prompt, 10, model);
+  let choices = await generateRunway(prompt, 2, model);
 
   if (choices.error) {
     console.log('error');
@@ -416,7 +434,7 @@ async function goTweet() {
     if (wordfilter.blacklisted(choices[i])) {
       console.log('wordfilter blocked tweet');
       console.log(choices[i]);
-      choices.splice(i, 1);
+      // choices.splice(i, 1);
       continue;
     }
 
@@ -467,7 +485,7 @@ async function randomNumber(tweet, min, max) {
 }
 
 // Non cannced reply
-async function reply(tweet) {
+async function reply(tweet, what) {
   console.log('replying via runway');
   // Previous tweet is prompt
   let prompt = tweet.text;
@@ -488,54 +506,69 @@ async function reply(tweet) {
   const lastChar = prompt.charAt(prompt.length - 1);
   prompt.trim();
 
+  // Remove askkeeves hashtag
+  prompt.replace(/#askkeeves/i, '');
+
   // Is there a period or no?
   if (!/[.!?]/.test(lastChar)) {
     prompt += '.';
   }
 
   console.log('revised: ' + prompt);
-  const generated = await generateRunway(prompt, 1);
+
+  let generated = '';
+  if (what == 'askkeeves') {
+    generated = await generateOPENAI(prompt, 4);
+  } else {
+    generated = await generateRunway(prompt, 4);
+  }
 
   if (generated.error) {
     console.log(generated.error);
     return;
   }
+  console.log(generated);
 
-  let replyText = generated.replace(prompt, '').trim();
+  for (let i = 0; i < generated.length; i++) {
+    generated[i] = generated[i].replace(prompt, '').trim();
 
-  // TODO: more cleanup here?
+    console.log(generated[i]);
 
-  // Canned reply if there's nothing
-  if (replyText.length < 1 && Math.random() < 0.5) {
-    return await cannedReply(tweet);
-  } else {
-    return await goGIF(tweet);
-  }
+    // TODO: more cleanup here?
 
-  if (wordfilter.blacklisted(replyText)) {
-    console.log('wordfilter blocked tweet');
-    console.log(replyText);
-    return;
-  }
+    // Canned reply if there's nothing
+    // if (replyText.length < 1) {
+    //   if (Math.random() < 0.5) return await cannedReply(tweet);
+    //   else return await goGIF(tweet);
+    // }
 
-  // Replace all mentions
-  let regex = /@[a-z0-9_]+/gi;
-  let mentions = replyText.match(regex);
-  if (mentions) {
-    mentions.forEach((username) => {
-      let screen_name = username.substring(1, username.length);
-      console.log(`Mentioned: ${screen_name}`);
-      if (!approvedMentions[screen_name]) {
-        let replacements = Object.keys(approvedMentions);
-        let replacement = random(replacements);
-        console.log(`Replacing: ${screen_name} with ${replacement}`);
-        replyText = replyText.replace(screen_name, replacement);
-      }
-    });
+    // if (wordfilter.blacklisted(replyText)) {
+    //   console.log('wordfilter blocked tweet');
+    //   console.log(replyText);
+    //   return;
+    // }
+
+    // Replace all mentions
+    let regex = /@[a-z0-9_]+/gi;
+    let mentions = generated[i].match(regex);
+    if (mentions) {
+      mentions.forEach((username) => {
+        let screen_name = username.substring(1, username.length);
+        console.log(`Mentioned: ${screen_name}`);
+        if (!approvedMentions[screen_name]) {
+          let replacements = Object.keys(approvedMentions);
+          let replacement = random(replacements);
+          console.log(`Replacing: ${screen_name} with ${replacement}`);
+          generated[i] = replyText.replace(screen_name, replacement);
+        }
+      });
+    }
   }
 
   // Thread it?
-  await add2Queue(replyText, tweet);
+  await addChoices(generated, tweet);
+  // await add2Queue(replyText, tweet);
+
   // if (replyText.length > 280) {
   //   const thread = threadIt(replyText);
   //   let data = await tweetIt(thread[0], tweet.id_str);
@@ -720,6 +753,8 @@ async function tweetHandler(event) {
     // }
 
     let txt = tweet.text;
+
+    // Ignore retweets
     if (/^RT\s/.test(txt)) {
       return;
     }
@@ -750,6 +785,11 @@ async function tweetHandler(event) {
     //   return;
     // }
 
+    if (/#askkeeves/i.test(txt)) {
+      await reply(tweet, 'askkeeves');
+      return;
+    }
+
     // Randomly create a reply
     let r1 = Math.random();
     console.log(r1);
@@ -760,7 +800,7 @@ async function tweetHandler(event) {
 
     if (r1 < 0.25) {
       await goGIF(tweet);
-    } else if (r1 < 5) {
+    } else if (r1 < 0.5) {
       await cannedReply(tweet);
     } else if (approvedNames.includes(tweet.user.screen_name)) {
       await reply(tweet);

@@ -3,8 +3,9 @@ const fetch = require('node-fetch');
 const { random } = require('./util');
 
 const { Configuration, OpenAIApi } = require('openai');
+
 const configuration = new Configuration({
-  apiKey: process.env.OPENAI_API_KEY,
+  apiKey: process.env.OPENAI_SECRET_KEY,
 });
 const openai = new OpenAIApi(configuration);
 
@@ -120,6 +121,31 @@ module.exports = {
       if (quotes && quotes.length === 1) {
         result = result.replace(/"/, '');
       }
+      choices.push(result);
+    }
+    if (choices.length > 1) return choices;
+    else return choices[0];
+  },
+  generateOPENAI: async (prompt, num = 1) => {
+    console.log(`prompt: ${prompt}`);
+    console.log(num);
+    const options = {
+      // model: 'curie:ft-itp:keev-answers-2022-10-27-15-41-45',
+      model: 'davinci:ft-itp:keev-answers-2022-10-27-17-38-28',
+      prompt: prompt + ' ->',
+      temperature: 0.99,
+      n: num,
+      max_tokens: 64,
+      stop: '\n',
+    };
+    console.log(options);
+    const completion = await openai.createCompletion(options);
+    const outputs = completion.data;
+    const choices = [];
+    for (let i = 0; i < outputs.choices.length; i++) {
+      let result = outputs.choices[i].text;
+      console.log(result);
+      // Splitting up and shortening the total number of sections
       choices.push(result);
     }
     if (choices.length > 1) return choices;

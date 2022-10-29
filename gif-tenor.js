@@ -1,5 +1,5 @@
 const { random } = require('./util');
-const { gifTerms } = require('./lists');
+const { gifTerms } = require('./data/lists');
 const { tweetMedia } = require('./twitter');
 const fetch = require('node-fetch');
 
